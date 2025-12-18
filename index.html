@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI English Call (Proto)</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* --- デザイン（前回と同じ） --- */
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+        .caller-area { margin-top: 60px; text-align: center; }
+        .avatar {
+            width: 120px; height: 120px; background-color: rgba(255,255,255,0.2);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 50px; margin: 0 auto 20px; border: 2px solid rgba(255,255,255,0.5);
+            box-shadow: 0 0 20px rgba(0,0,0,0.3); transition: all 0.3s;
+        }
+        .status { font-size: 14px; opacity: 0.8; margin-top: 5px; }
+        .settings-area { background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 20px; backdrop-filter: blur(5px); }
+        select { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.5); padding: 5px; border-radius: 5px; font-size: 16px; }
+        .subtitle-area { flex-grow: 1; width: 90%; display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 15px; }
+        .sub-en { font-size: 24px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .sub-jp { font-size: 16px; opacity: 0.8; color: #ddd; }
+        .controls { margin-bottom: 50px; display: flex; gap: 20px; }
+        .btn-call { width: 70px; height: 70px; border-radius: 50%; border: none; color: white; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; }
+        .btn-start { background-color: #4CAF50; }
+        .btn-stop { background-color: #f44336; display: none; }
+        .btn-call:active { transform: scale(0.95); }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .listening-pulse { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); animation: pulse 1.5s infinite; }
+        .speaking-pulse { box-shadow: 0 0 0 0 rgba(255, 235, 59, 0.7); animation: pulse-yellow 1.5s infinite; transform: scale(1.1); }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(76, 175, 80, 0); } 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); } }
+        @keyframes pulse-yellow { 0% { box-shadow: 0 0 0 0 rgba(255, 235, 59, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(255, 235, 59, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 235, 59, 0); } }
+    </style>
+</head>
+<body>
+
+    <div class="caller-area">
+        <div class="avatar" id="avatar">☕</div>
+        <h2 id="role-name">Cafe Staff</h2>
+        <div class="status" id="status-text">Tap green button</div>
+    </div>
+
+    <div class="settings-area">
+        <label>Scenario: </label>
+        <select id="scenario-select" onchange="changeScenario()">
+            <option value="cafe">カフェ (注文)</option>
+            <option value="tutor">先生 (自己紹介)</option>
+        </select>
+    </div>
+
+    <div class="subtitle-area">
+        <div class="sub-en" id="text-en">Welcome!</div>
+        <div class="sub-jp" id="text-jp">いらっしゃいませ！</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-call btn-start" id="btn-start" onclick="startConversation()">📞</button>
+        <button class="btn-call btn-stop" id="btn-stop" onclick="stopConversation()">❌</button>
+    </div>
+
+    <script>
+        // --- 簡易AIの脳みそ（ここを編集すれば会話パターンが増えます） ---
+        const scenarios = {
+            cafe: {
+                name: "Barista", icon: "☕", 
+                greeting: { en: "Hi! What can I get for you?", jp: "いらっしゃいませ、ご注文は何にしますか？" },
+                // キーワード応答ロジック
+                responses: [
+                    { keywords: ["coffee", "latte", "espresso"], en: "Hot or Iced?", jp: "ホットにしますか？アイスにしますか？" },
+                    { keywords: ["hot", "iced"], en: "Okay, coming right up!", jp: "かしこまりました、すぐご用意します！" },
+                    { keywords: ["tea", "water"], en: "Sure thing.", jp: "承知いたしました。" },
+                    { keywords: ["thank", "thanks"], en: "You are welcome! Have a nice day.", jp: "どういたしまして！良い一日を。" }
+                ],
+                fallback: { en: "Sorry, could you say that again?", jp: "すみません、もう一度お願いします（コーヒーと言ってみて）" }
+            },
+            tutor: {
+                name: "Teacher", icon: "👩‍🏫", 
+                greeting: { en: "Hello! My name is Emma. What is your name?", jp: "こんにちは！エマです。あなたのお名前は？" },
+                responses: [
+                    { keywords: ["my name", "i am", "name is"], en: "Nice to meet you! How are you today?", jp: "はじめまして！今日の調子はどうですか？" },
+                    { keywords: ["good", "fine", "great", "happy"], en: "That is wonderful to hear!", jp: "それは良かったです！" },
+                    { keywords: ["tired", "bad", "sleepy"], en: "Oh no, take it easy.", jp: "あら、無理しないでね。" }
+                ],
+                fallback: { en: "I see. Please tell me more.", jp: "なるほど。もっと教えてください。" }
+            }
+        };
+
+        // --- システム変数 ---
+        let recognition;
+        let isRecording = false;
+        let isSpeaking = false;
+        let currentScenario = 'cafe';
+
+        // 音声認識の設定
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                console.log('User said:', transcript);
+                
+                // ユーザーの発言を表示
+                document.getElementById('text-en').innerText = "You: " + transcript;
+                document.getElementById('text-jp').innerText = "...";
+
+                // AIの返答を生成
+                setTimeout(() => processAIResponse(transcript), 800);
+            };
+
+            recognition.onend = () => {
+                // 自分が喋っていなくて、かつ通話中ならマイク再開
+                if (isRecording && !isSpeaking) recognition.start();
+            };
+        }
+
+        // --- 関数群 ---
+
+        function changeScenario() {
+            currentScenario = document.getElementById('scenario-select').value;
+            const data = scenarios[currentScenario];
+            
+            document.getElementById('avatar').innerText = data.icon;
+            document.getElementById('role-name').innerText = data.name;
+            document.getElementById('text-en').innerText = data.greeting.en;
+            document.getElementById('text-jp').innerText = data.greeting.jp;
+        }
+
+        function startConversation() {
+            isRecording = true;
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'flex';
+            document.getElementById('status-text').innerText = "Listening...";
+            document.getElementById('avatar').className = 'avatar listening-pulse';
+            
+            // 初回の発話許可
+            const u = new SpeechSynthesisUtterance('');
+            speechSynthesis.speak(u);
+
+            if(recognition) recognition.start();
+        }
+
+        function stopConversation() {
+            isRecording = false;
+            document.getElementById('btn-start').style.display = 'flex';
+            document.getElementById('btn-stop').style.display = 'none';
+            document.getElementById('status-text').innerText = "Call ended";
+            document.getElementById('avatar').className = 'avatar';
+            if(recognition) recognition.stop();
+            speechSynthesis.cancel();
+        }
+
+        // 簡易AIの思考回路
+        function processAIResponse(userText) {
+            // 一旦マイクを止める（自分の声を拾わないため）
+            isSpeaking = true;
+            if(recognition) recognition.stop();
+
+            const data = scenarios[currentScenario];
+            let replyEn = data.fallback.en;
+            let replyJp = data.fallback.jp;
+
+            // キーワードマッチング
+            for (const resp of data.responses) {
+                // ユーザーの言葉の中にキーワードが含まれているか？
+                if (resp.keywords.some(keyword => userText.includes(keyword))) {
+                    replyEn = resp.en;
+                    replyJp = resp.jp;
+                    break;
+                }
+            }
+
+            // 画面更新
+            document.getElementById('text-en').innerText = replyEn;
+            document.getElementById('text-jp').innerText = replyJp;
+            document.getElementById('avatar').className = 'avatar speaking-pulse';
+            document.getElementById('status-text').innerText = "Speaking...";
+
+            // 喋る
+            const ut = new SpeechSynthesisUtterance(replyEn);
+            ut.lang = 'en-US';
+            ut.rate = 1.0; // 話す速度
+            
+            ut.onend = () => {
+                // 喋り終わったらマイク再開
+                isSpeaking = false;
+                document.getElementById('avatar').className = 'avatar listening-pulse';
+                document.getElementById('status-text').innerText = "Listening...";
+                if (isRecording) recognition.start();
+            };
+
+            speechSynthesis.speak(ut);
+        }
+    </script>
+</body>
+</html>

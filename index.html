@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI English Call (Proto)</title>
+    <title>AI English Call (Pro)</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        /* --- デザイン（前回と同じ） --- */
+        /* --- デザイン（変更なし） --- */
         body {
             background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
             background-size: 400% 400%;
@@ -21,20 +21,20 @@
             justify-content: space-between;
             overflow: hidden;
         }
-        .caller-area { margin-top: 60px; text-align: center; }
+        .caller-area { margin-top: 50px; text-align: center; }
         .avatar {
             width: 120px; height: 120px; background-color: rgba(255,255,255,0.2);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 50px; margin: 0 auto 20px; border: 2px solid rgba(255,255,255,0.5);
+            font-size: 50px; margin: 0 auto 15px; border: 2px solid rgba(255,255,255,0.5);
             box-shadow: 0 0 20px rgba(0,0,0,0.3); transition: all 0.3s;
         }
         .status { font-size: 14px; opacity: 0.8; margin-top: 5px; }
-        .settings-area { background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 20px; backdrop-filter: blur(5px); }
+        .settings-area { background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 20px; backdrop-filter: blur(5px); margin-bottom: 10px; }
         select { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.5); padding: 5px; border-radius: 5px; font-size: 16px; }
         .subtitle-area { flex-grow: 1; width: 90%; display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 15px; }
-        .sub-en { font-size: 24px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .sub-jp { font-size: 16px; opacity: 0.8; color: #ddd; }
-        .controls { margin-bottom: 50px; display: flex; gap: 20px; }
+        .sub-en { font-size: 22px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
+        .sub-jp { font-size: 15px; opacity: 0.8; color: #ddd; }
+        .controls { margin-bottom: 40px; display: flex; gap: 20px; }
         .btn-call { width: 70px; height: 70px; border-radius: 50%; border: none; color: white; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; }
         .btn-start { background-color: #4CAF50; }
         .btn-stop { background-color: #f44336; display: none; }
@@ -57,8 +57,11 @@
     <div class="settings-area">
         <label>Scenario: </label>
         <select id="scenario-select" onchange="changeScenario()">
-            <option value="cafe">カフェ (注文)</option>
-            <option value="tutor">先生 (自己紹介)</option>
+            <option value="cafe">☕ カフェ (注文)</option>
+            <option value="tutor">👩‍🏫 先生 (自己紹介)</option>
+            <option value="hotel">🏨 ホテル (受付)</option>
+            <option value="street">🗺️ 道案内 (尋ねる)</option>
+            <option value="doctor">🏥 病院 (症状)</option>
         </select>
     </div>
 
@@ -73,39 +76,71 @@
     </div>
 
     <script>
-        // --- 簡易AIの脳みそ（ここを編集すれば会話パターンが増えます） ---
+        // --- ★ここが拡張された会話データベースです★ ---
         const scenarios = {
             cafe: {
                 name: "Barista", icon: "☕", 
-                greeting: { en: "Hi! What can I get for you?", jp: "いらっしゃいませ、ご注文は何にしますか？" },
-                // キーワード応答ロジック
+                greeting: { en: "Hi! What can I get for you today?", jp: "いらっしゃいませ、ご注文は何にしますか？" },
                 responses: [
-                    { keywords: ["coffee", "latte", "espresso"], en: "Hot or Iced?", jp: "ホットにしますか？アイスにしますか？" },
-                    { keywords: ["hot", "iced"], en: "Okay, coming right up!", jp: "かしこまりました、すぐご用意します！" },
-                    { keywords: ["tea", "water"], en: "Sure thing.", jp: "承知いたしました。" },
-                    { keywords: ["thank", "thanks"], en: "You are welcome! Have a nice day.", jp: "どういたしまして！良い一日を。" }
+                    { keywords: ["coffee", "latte", "espresso", "cappuccino"], en: "Hot or Iced?", jp: "ホットにしますか？アイスにしますか？" },
+                    { keywords: ["hot", "warm"], en: "Got it. Size? Tall or Grande?", jp: "了解です。サイズは？トール？グランデ？" },
+                    { keywords: ["ice", "cold"], en: "Iced one. Size? Tall or Grande?", jp: "アイスですね。サイズは？トール？グランデ？" },
+                    { keywords: ["tall", "grande", "small", "large"], en: "Okay, anything else to eat?", jp: "かしこまりました。他にお食事は？" },
+                    { keywords: ["no", "that's all", "nothing"], en: "Okay, your total is $5.", jp: "お会計は5ドルになります。" }
                 ],
-                fallback: { en: "Sorry, could you say that again?", jp: "すみません、もう一度お願いします（コーヒーと言ってみて）" }
+                fallback: { en: "Sorry, do you want Coffee or Tea?", jp: "すみません、コーヒーにしますか？紅茶にしますか？" }
             },
             tutor: {
-                name: "Teacher", icon: "👩‍🏫", 
+                name: "Emma (Teacher)", icon: "👩‍🏫", 
                 greeting: { en: "Hello! My name is Emma. What is your name?", jp: "こんにちは！エマです。あなたのお名前は？" },
                 responses: [
-                    { keywords: ["my name", "i am", "name is"], en: "Nice to meet you! How are you today?", jp: "はじめまして！今日の調子はどうですか？" },
-                    { keywords: ["good", "fine", "great", "happy"], en: "That is wonderful to hear!", jp: "それは良かったです！" },
-                    { keywords: ["tired", "bad", "sleepy"], en: "Oh no, take it easy.", jp: "あら、無理しないでね。" }
+                    { keywords: ["my name", "i am", "call me"], en: "Nice to meet you! Where are you from?", jp: "はじめまして！出身はどこですか？" },
+                    { keywords: ["japan", "tokyo", "osaka"], en: "Oh, I love Japan! Do you like English?", jp: "日本大好きです！英語は好きですか？" },
+                    { keywords: ["yes", "like", "love"], en: "That is great! Let's study together.", jp: "それは良かった！一緒に勉強しましょう。" },
+                    { keywords: ["no", "difficult", "hard"], en: "Don't worry. Step by step.", jp: "心配しないで。少しずつやりましょう。" }
                 ],
                 fallback: { en: "I see. Please tell me more.", jp: "なるほど。もっと教えてください。" }
+            },
+            hotel: {
+                name: "Front Desk", icon: "🏨", 
+                greeting: { en: "Good afternoon. Checking in?", jp: "こんにちは。チェックインですか？" },
+                responses: [
+                    { keywords: ["check in", "yes", "reservation"], en: "May I have your name and passport?", jp: "お名前とパスポートをお願いします。" },
+                    { keywords: ["here", "name is", "passport"], en: "Thank you. You are in room 305.", jp: "ありがとうございます。お部屋は305号室です。" },
+                    { keywords: ["breakfast", "food"], en: "Breakfast is served from 7 to 10 am.", jp: "朝食は7時から10時までです。" },
+                    { keywords: ["wifi", "internet"], en: "The password is 'hotel123'.", jp: "パスワードは hotel123 です。" }
+                ],
+                fallback: { en: "Could you say that again?", jp: "もう一度お願いします。" }
+            },
+            street: {
+                name: "Pedestrian", icon: "🚶", 
+                greeting: { en: "Excuse me, do you need help?", jp: "すみません、お困りですか？" },
+                responses: [
+                    { keywords: ["station", "train", "subway"], en: "Go straight and turn right.", jp: "まっすぐ行って、右に曲がってください。" },
+                    { keywords: ["restaurant", "food", "eat"], en: "There is a good pizza place over there.", jp: "あそこに美味しいピザ屋がありますよ。" },
+                    { keywords: ["thank"], en: "No problem. Have a nice trip!", jp: "どういたしまして。良い旅を！" }
+                ],
+                fallback: { en: "I'm not sure, sorry.", jp: "ごめんなさい、ちょっとわかりません。" }
+            },
+            doctor: {
+                name: "Dr. Smith", icon: "🏥", 
+                greeting: { en: "Hi, what is the problem today?", jp: "こんにちは、今日はどうされましたか？" },
+                responses: [
+                    { keywords: ["headache", "head", "pain"], en: "I see. How long have you had it?", jp: "なるほど。いつから痛みますか？" },
+                    { keywords: ["stomach", "tummy"], en: "Did you eat something strange?", jp: "何か変なものを食べましたか？" },
+                    { keywords: ["fever", "hot"], en: "Let me check your temperature.", jp: "熱を測らせてください。" },
+                    { keywords: ["medicine", "drug"], en: "Take this pill after dinner.", jp: "夕食後にこの薬を飲んでください。" }
+                ],
+                fallback: { en: "Does it hurt?", jp: "痛みはありますか？" }
             }
         };
 
-        // --- システム変数 ---
+        // --- システム変数と関数（前回から変更なし） ---
         let recognition;
         let isRecording = false;
         let isSpeaking = false;
         let currentScenario = 'cafe';
 
-        // 音声認識の設定
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
@@ -114,28 +149,18 @@
 
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript.toLowerCase();
-                console.log('User said:', transcript);
-                
-                // ユーザーの発言を表示
                 document.getElementById('text-en').innerText = "You: " + transcript;
                 document.getElementById('text-jp').innerText = "...";
-
-                // AIの返答を生成
                 setTimeout(() => processAIResponse(transcript), 800);
             };
-
             recognition.onend = () => {
-                // 自分が喋っていなくて、かつ通話中ならマイク再開
                 if (isRecording && !isSpeaking) recognition.start();
             };
         }
 
-        // --- 関数群 ---
-
         function changeScenario() {
             currentScenario = document.getElementById('scenario-select').value;
             const data = scenarios[currentScenario];
-            
             document.getElementById('avatar').innerText = data.icon;
             document.getElementById('role-name').innerText = data.name;
             document.getElementById('text-en').innerText = data.greeting.en;
@@ -148,11 +173,8 @@
             document.getElementById('btn-stop').style.display = 'flex';
             document.getElementById('status-text').innerText = "Listening...";
             document.getElementById('avatar').className = 'avatar listening-pulse';
-            
-            // 初回の発話許可
             const u = new SpeechSynthesisUtterance('');
             speechSynthesis.speak(u);
-
             if(recognition) recognition.start();
         }
 
@@ -166,9 +188,7 @@
             speechSynthesis.cancel();
         }
 
-        // 簡易AIの思考回路
         function processAIResponse(userText) {
-            // 一旦マイクを止める（自分の声を拾わないため）
             isSpeaking = true;
             if(recognition) recognition.stop();
 
@@ -176,9 +196,8 @@
             let replyEn = data.fallback.en;
             let replyJp = data.fallback.jp;
 
-            // キーワードマッチング
+            // 部分一致でも反応するように改良（includes判定）
             for (const resp of data.responses) {
-                // ユーザーの言葉の中にキーワードが含まれているか？
                 if (resp.keywords.some(keyword => userText.includes(keyword))) {
                     replyEn = resp.en;
                     replyJp = resp.jp;
@@ -186,25 +205,20 @@
                 }
             }
 
-            // 画面更新
             document.getElementById('text-en').innerText = replyEn;
             document.getElementById('text-jp').innerText = replyJp;
             document.getElementById('avatar').className = 'avatar speaking-pulse';
             document.getElementById('status-text').innerText = "Speaking...";
 
-            // 喋る
             const ut = new SpeechSynthesisUtterance(replyEn);
             ut.lang = 'en-US';
-            ut.rate = 1.0; // 話す速度
-            
+            ut.rate = 1.0;
             ut.onend = () => {
-                // 喋り終わったらマイク再開
                 isSpeaking = false;
                 document.getElementById('avatar').className = 'avatar listening-pulse';
                 document.getElementById('status-text').innerText = "Listening...";
                 if (isRecording) recognition.start();
             };
-
             speechSynthesis.speak(ut);
         }
     </script>
